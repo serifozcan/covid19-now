@@ -6,7 +6,7 @@
 
 <script>
 import { geoMercator as mercator, geoPath as path, geoGraticule as graticule, geoCentroid as centroid } from 'd3-geo';
-import { select, mouse as d3Mouse, event as d3Event } from 'd3-selection';
+import { select, event as d3Event } from 'd3-selection';
 import { interpolateOrRd } from 'd3-scale-chromatic';
 import { scaleSequential } from 'd3-scale';
 import { csv, json } from 'd3-fetch';
@@ -28,6 +28,7 @@ export default {
       maxNumber: 0,
       offsetL: 0,
       offsetT: 0,
+      lastDate: '3/18/20'
     };
   },
   methods: {},
@@ -38,11 +39,12 @@ export default {
     let filePath =
       'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv';
     this.covidCountryData = await csv(filePath);
+
     this.rowByName = this.covidCountryData.reduce((accumulator, d) => {
       let country = d['Country/Region'];
       let data = d;
-      if (+d['3/17/20'] > this.maxNumber) {
-        this.maxNumber = +d['3/17/20'];
+      if (+d[this.lastDate] > this.maxNumber) {
+        this.maxNumber = +d[this.lastDate];
       }
       if (country == 'US') {
         country = 'United States of America';
@@ -108,19 +110,14 @@ export default {
       .attr('class', 'country')
       .attr('d', this.path)
       .attr('fill', (d) => {
-        if (d.properties['3/17/20']) {
-          return colorScale(+d.properties['3/17/20']);
+        if (d.properties[this.lastDate]) {
+          return colorScale(+d.properties[this.lastDate]);
         } else {
           return '#E5ECF6';
         }
       })
       .on('mousemove', (d) => {
-        const label = `${d.properties.name} ${d.properties['3/17/20'] !== 'undefined' ? d.properties['3/17/20'] + ' confirmed' : ''}`;
-
-        // eslint-disable-next-line no-unused-vars
-        let mouse = d3Mouse(this.svg.node()).map((d) => {
-          return parseInt(d);
-        });
+        const label = `${d.properties.name} ${typeof(d.properties[this.lastDate]) !== 'undefined' ? d.properties[this.lastDate] + ' confirmed' : ''}`;
 
         tooltip
           .classed('hidden', false)
