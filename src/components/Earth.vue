@@ -17,52 +17,71 @@ export default {
   components: {},
   data() {
     return {
-      lifeSpan: 5000,
-      fetchSpeed: 5000,
+      topoJSONdata: null,
       covidCountryData: [],
       projection: '',
       path: '',
       graticule: '',
       svg: '',
-      rowByName: [],
+      countries: null,
       maxNumber: 0,
-      offsetL: 0,
-      offsetT: 0,
-      lastDate: '3/18/20'
+      lastDate: '',
+      dates: [],
     };
   },
-  methods: {},
+  methods: {
+    calculateLastDate: function() {
+      const dateRegex = /\d{1,2}\/\d{2}\/\d{2}/g;
+      this.dates = Object.keys(this.covidCountryData[0])
+        .filter((k) => dateRegex.test(k))
+        .sort((a, b) => {
+          const splitA = a.split('/');
+          const splitB = b.split('/');
+          const dateA = new Date(`20${splitA[2]}`, +splitA[0] - 1, splitA[1]);
+          const dateB = new Date(`20${splitB[2]}`, +splitB[0] - 1, splitB[1]);
+          return dateB - dateA;
+        });
+      this.lastDate = this.dates[0];
+    },
+    SetCountryData: async function() {
+      this.topoJSONdata = await this.getTopoJSONData()
+      const rowByName = this.covidCountryData.reduce((accumulator, d) => {
+        let country = d['Country/Region'];
+        let data = d;
+        if (+d[this.lastDate] > this.maxNumber) {
+          this.maxNumber = +d[this.lastDate];
+        }
+        if (country == 'US') {
+          country = 'United States of America';
+        }
+        if (accumulator[country]) {
+          let tmp = accumulator[country];
+          for (const property in tmp) {
+            data[property] = +data[property] + +tmp[property];
+          }
+        }
+        accumulator[country] = data;
+        return accumulator;
+      }, {});
+
+      this.countries = topojson.feature(this.topoJSONdata, this.topoJSONdata.objects.countries);
+      this.countries.features.forEach((d) => {
+        Object.assign(d.properties, rowByName[d.properties.name]);
+      });
+    },
+    getTopoJSONData: async function() {
+      return json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json')
+    }
+  },
   async beforeCreate() {},
   async mounted() {
-    const topoJSONdata = await json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
 
     let filePath =
       'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv';
     this.covidCountryData = await csv(filePath);
 
-    this.rowByName = this.covidCountryData.reduce((accumulator, d) => {
-      let country = d['Country/Region'];
-      let data = d;
-      if (+d[this.lastDate] > this.maxNumber) {
-        this.maxNumber = +d[this.lastDate];
-      }
-      if (country == 'US') {
-        country = 'United States of America';
-      }
-      if (accumulator[country]) {
-        let tmp = accumulator[country];
-        for (const property in tmp) {
-          data[property] = +data[property] + +tmp[property];
-        }
-      }
-      accumulator[country] = data;
-      return accumulator;
-    }, {});
-
-    const countries = topojson.feature(topoJSONdata, topoJSONdata.objects.countries);
-    countries.features.forEach((d) => {
-      Object.assign(d.properties, this.rowByName[d.properties.name]);
-    });
+    this.calculateLastDate();
+    await this.SetCountryData();
 
     this.projection = mercator().precision(0.1);
 
@@ -70,8 +89,6 @@ export default {
     this.graticule = graticule();
 
     let earth = select(this.$el);
-    this.offsetL = this.$el.offsetLeft + 10;
-    this.offsetT = this.$el.offsetTop + 10;
 
     let colorScale = scaleSequential(interpolateOrRd).domain([0, this.maxNumber]);
     this.svg = earth
@@ -104,7 +121,7 @@ export default {
 
     this.svg
       .selectAll('.country')
-      .data(countries.features)
+      .data(this.countries.features)
       .enter()
       .insert('path', '.graticule')
       .attr('class', 'country')
@@ -117,11 +134,13 @@ export default {
         }
       })
       .on('mousemove', (d) => {
-        const label = `${d.properties.name} ${typeof(d.properties[this.lastDate]) !== 'undefined' ? d.properties[this.lastDate] + ' confirmed' : ''}`;
+        const label = `${d.properties.name} ${
+          typeof d.properties[this.lastDate] !== 'undefined' ? d.properties[this.lastDate] + ' confirmed' : ''
+        }`;
 
         tooltip
           .classed('hidden', false)
-          .attr('style', `left:${d3Event.pageX + this.offsetL}px;top:${d3Event.pageY + this.offsetT}px`)
+          .attr('style', `left:${d3Event.pageX + 10}px;top:${d3Event.pageY + 10}px`)
           .html(label);
       })
       .on('mouseout', () => {
@@ -131,7 +150,7 @@ export default {
     this.svg
       .insert('path', '.graticule')
       .datum(
-        topojson.mesh(topoJSONdata, topoJSONdata.objects.countries, (a, b) => {
+        topojson.mesh(this.topoJSONdata, this.topoJSONdata.objects.countries, (a, b) => {
           return a !== b;
         })
       )
@@ -140,7 +159,7 @@ export default {
 
     this.svg // country names don't look good so don't show them
       .selectAll('text')
-      .data(countries.features)
+      .data(this.countries.features)
       .enter()
       .append('text')
       .text(function(d) {
