@@ -9,8 +9,9 @@ import { geoMercator as mercator, geoPath as path, geoGraticule as graticule, ge
 import { select, event as d3Event } from 'd3-selection';
 import { interpolateOrRd } from 'd3-scale-chromatic';
 import { scaleSequential } from 'd3-scale';
-import { csv, json } from 'd3-fetch';
+import { json } from 'd3-fetch';
 import * as topojson from 'topojson';
+import countryMismatch from '@/utils/countries';
 
 export default {
   name: 'Earth',
@@ -25,48 +26,28 @@ export default {
       svg: '',
       countries: null,
       maxNumber: 0,
-      lastDate: '',
-      dates: [],
+      confirmed: 'totalCases',
+      test: null
     };
   },
   methods: {
-    calculateLastDate: function() {
-      const dateRegex = /\d{1,2}\/\d{2}\/\d{2}/g;
-      this.dates = Object.keys(this.covidCountryData[0])
-        .filter((k) => dateRegex.test(k))
-        .sort((a, b) => {
-          const splitA = a.split('/');
-          const splitB = b.split('/');
-          const dateA = new Date(`20${splitA[2]}`, +splitA[0] - 1, splitA[1]);
-          const dateB = new Date(`20${splitB[2]}`, +splitB[0] - 1, splitB[1]);
-          return dateB - dateA;
-        });
-      this.lastDate = this.dates[0];
-    },
     SetCountryData: async function() {
       this.topoJSONdata = await this.getTopoJSONData()
       const rowByName = this.covidCountryData.reduce((accumulator, d) => {
-        let country = d['Country/Region'];
+        let country = d['name'];
         let data = d;
-        if (+d[this.lastDate] > this.maxNumber) {
-          this.maxNumber = +d[this.lastDate];
+        if (country != 'Total' && +d[this.confirmed] > this.maxNumber) {
+          this.maxNumber = +d[this.confirmed];
         }
-        if (country == 'US') {
-          country = 'United States of America';
+        if (countryMismatch[country]) {
+          country = countryMismatch[country];
         }
-        if (accumulator[country]) {
-          let tmp = accumulator[country];
-          for (const property in tmp) {
-            data[property] = +data[property] + +tmp[property];
-          }
-        }
-        accumulator[country] = data;
+        accumulator[country.replace(/ /g,"")] = data;
         return accumulator;
       }, {});
-
       this.countries = topojson.feature(this.topoJSONdata, this.topoJSONdata.objects.countries);
       this.countries.features.forEach((d) => {
-        Object.assign(d.properties, rowByName[d.properties.name]);
+          Object.assign(d.properties, rowByName[d.properties.name.replace(/ /g,"")]);
       });
     },
     getTopoJSONData: async function() {
@@ -77,10 +58,9 @@ export default {
   async mounted() {
 
     let filePath =
-      'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_19-covid-Confirmed.csv';
-    this.covidCountryData = await csv(filePath);
+      'https://exchange.vcoud.com/coronavirus/latest';
+    this.covidCountryData = await json(filePath);
 
-    this.calculateLastDate();
     await this.SetCountryData();
 
     this.projection = mercator().precision(0.1);
@@ -127,15 +107,15 @@ export default {
       .attr('class', 'country')
       .attr('d', this.path)
       .attr('fill', (d) => {
-        if (d.properties[this.lastDate]) {
-          return colorScale(+d.properties[this.lastDate]);
+        if (d.properties[this.confirmed]) {
+          return colorScale(+d.properties[this.confirmed]);
         } else {
           return '#E5ECF6';
         }
       })
       .on('mousemove', (d) => {
         const label = `${d.properties.name} ${
-          typeof d.properties[this.lastDate] !== 'undefined' ? d.properties[this.lastDate] + ' confirmed' : ''
+          typeof d.properties[this.confirmed] !== 'undefined' ? d.properties[this.confirmed] + ' confirmed' : ''
         }`;
 
         tooltip

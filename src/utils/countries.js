@@ -1,0 +1,21 @@
+const countries = {
+  'USA': 'UnitedStatesofAmerica',
+  'S. Korea': 'SouthKorea',
+  'Dominican Republic': 'DominicanRep.',
+  'UAE': 'UnitedArabEmirates',
+  'Bosnia and Herzegovina': 'BosniaandHerz.',
+  'North Macedonia': 'Macedonia',
+  'Faeroe Islands': 'FaeroeIs.',
+  'French Polynesia': 'Fr.Polynesia',
+  'Equatorial Guinea': 'Eq.Guinea',
+  'Saint Martin': 'St-Martin',
+  'Cayman Islands': 'CaymanIs.',
+  'Antigua and Barbuda': 'AntiguaandBarb.',
+  'Vatican City': 'Vatican',
+  'St. Barth': 'St-Barthélemy',
+  'Sain tLucia': 'Saint Lucia',
+  'Turks and Caicos': 'TurksandCaicosIs',
+  'British Virgin Islands': 'BritishVirginIs.',
+  'Saint Kitts and Nevis': 'St.KittsandNevis',
+};
+export default countries;
