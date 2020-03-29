@@ -1,5 +1,4 @@
 # Coronavirus COVID-19 Visual Dashboard with Vuejs and D3
-> Please note. The data used in the visualization is from [Data Repository by Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19).
 
 ![](https://github.com/serifozcan/covid19-now/raw/master/public/preview.png)
 
@@ -21,5 +20,3 @@ yarn build
 yarn lint
 ```
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
